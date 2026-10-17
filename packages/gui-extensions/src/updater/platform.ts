@@ -32,6 +32,8 @@ export const make = Effect.fn("Updater.platform")(function* (channel: string) {
   return {
     checkForUpdate: Effect.tryPromise({
       try: async () => {
+        // Win7 包手工更新，防止官方更新器替换已适配的运行基座。
+        if (process.env.OPENCODE_WIN7 === "1") return undefined
         const result = await updateClient.checkForUpdates()
 
         if (!result?.isUpdateAvailable) return undefined

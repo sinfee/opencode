@@ -9,13 +9,13 @@ export const CHANNEL: Channel = raw === "local" || raw === "dev" || raw === "bet
 export const VERSION = app.isPackaged ? app.getVersion() : (process.env.OPENCODE_VERSION ?? app.getVersion())
 
 const appNames: Record<string, string> = {
-  dev: "OpenCode Dev",
+  dev: "OpenCode Win7",
   beta: "OpenCode Beta",
   prod: "OpenCode",
 }
 
 const appIDs: Record<string, string> = {
-  dev: "ai.opencode.desktop.dev",
+  dev: "com.qdthinker.opencode.win7",
   beta: "ai.opencode.desktop.beta",
   prod: "ai.opencode.desktop",
 }

@@ -10,7 +10,7 @@ const pty = createRequire(import.meta.url)(process.env.OPENCODE_NODE_PTY_PATH ??
 }
 
 function spawnPty(file: string, args: string[], opts: Opts): Proc {
-  const proc = pty.spawn(file, args, process.platform === "win32" && isSea() ? { ...opts, useConptyDll: true } : opts)
+  const proc = pty.spawn(file, args, process.platform === "win32" && process.env.OPENCODE_WIN7 === "1" ? { ...opts, useConpty: false } : process.platform === "win32" && isSea() ? { ...opts, useConptyDll: true } : opts)
   return {
     pid: proc.pid,
     onData(listener) {

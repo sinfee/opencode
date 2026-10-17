@@ -14,6 +14,14 @@ const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 // take effect before ready, the single-instance lock is scoped to userData, and the early window
 // needs userData to find the persisted window list and state.
 export function configureApplication() {
+  // 本分支的构建产物固定使用 Win7 运行布局，直接双击 EXE 也启用适配。
+  process.env.OPENCODE_WIN7 = "1"
+  if (app.isPackaged) {
+    const root = path.join(process.resourcesPath, "win7")
+    process.env.PATH = ["node", "python", "psh"].map((name) => path.join(root, name)).join(path.delimiter) + path.delimiter + (process.env.PATH ?? "")
+  }
+  // 本分支的构建产物固定使用 Win7 运行布局，直接双击 EXE 也启用适配。
+  process.env.OPENCODE_WIN7 = "1"
   try {
     process.chdir(homedir())
   } catch {}
@@ -53,7 +61,7 @@ function createTestRoot() {
   const root = testOnboarding
     ? path.join(tmpdir(), `opencode-onboarding-${randomUUID()}`)
     : app.isPackaged
-      ? undefined
+      ? process.env.OPENCODE_WIN7_DATA_DIR
       : process.env.OPENCODE_DESKTOP_TEST_ROOT
 
   if (!root) return undefined
