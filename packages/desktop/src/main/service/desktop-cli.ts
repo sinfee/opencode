@@ -81,7 +81,7 @@ const resolveBundledCli = Effect.fn("DesktopCli.resolveBundled")(function* (isol
   // Win7 便携包直接使用完整 Node 资源树，避免只暂存单个侧车 EXE。
   if (process.platform === "win32" && process.env.OPENCODE_WIN7 === "1") {
     const root = path.join(process.resourcesPath, "win7")
-    return { version: process.env.OPENCODE_VERSION ?? "2.0.32-win7.1", command: [path.join(root, "node", "node.exe"), "--experimental-ffi", "--use-system-ca", path.join(root, "app", "opencode.mjs")] }
+    return { version: process.env.OPENCODE_VERSION ?? app.getVersion(), command: [path.join(root, "node", "node.exe"), "--experimental-ffi", "--use-system-ca", path.join(root, "app", "opencode.mjs")] }
   }
   const bundled = app.isPackaged
     ? path.join(process.resourcesPath, executableName())
