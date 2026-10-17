@@ -231,8 +231,9 @@ if (__ocIsSea()) {
   }
 }
 process.env.OPENCODE_NODE_ASSETS_DIR = __ocAssetRoot
+if (process.env.OPENCODE_WIN7 === "1") require(__ocPath.join(__ocAssetRoot, "opencode-win7-preload.cjs"))
 process.env.OTUI_ASSET_ROOT = __ocAssetRoot
-process.env.OPENCODE_NODE_PTY_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.nodePtyEntryAsset)})
+process.env.OPENCODE_NODE_PTY_PATH = process.env.OPENCODE_WIN7 === "1" ? __ocPath.join(__ocAssetRoot, "opencode-winpty/index.cjs") : __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.nodePtyEntryAsset)})
 process.env.OPENCODE_PARCEL_WATCHER_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.parcelWatcherAsset)})
 process.env.OPENCODE_PHOTON_WASM_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(photonWasmAsset)})
 process.env.OPENCODE_TREE_SITTER_WASM_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(shellParserWasmAssets.runtime)})
