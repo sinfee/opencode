@@ -46,7 +46,9 @@ const connect = Effect.fn("BackgroundService.connect")(function* (mode: "initial
       file:
         isolated && process.env.OPENCODE_DESKTOP_SERVER_CHANNEL === "local"
           ? path.join(app.getPath("userData"), "opencode", "service-local.json")
-          : undefined,
+          : app.isPackaged && process.env.OPENCODE_WIN7 === "1"
+            ? path.join(process.env.XDG_STATE_HOME ?? path.join(app.getPath("home"), ".local", "state"), "opencode", "service-win7.json")
+            : undefined,
       version,
       // A fixed port makes a second contender fail to bind and back off; port 0 never collides, so two
       // services could boot against the same database.

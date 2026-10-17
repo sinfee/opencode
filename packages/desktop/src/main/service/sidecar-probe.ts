@@ -16,7 +16,12 @@ export function startSidecarProbe() {
 
   if (!version) return
   probe = import("@opencode/client/service")
-    .then(({ Service }) => Service.discover({ version }))
+    .then(({ Service }) => Service.discover({
+      version,
+      file: process.env.OPENCODE_WIN7 === "1"
+        ? path.join(process.env.XDG_STATE_HOME ?? path.join(app.getPath("home"), ".local", "state"), "opencode", "service-win7.json")
+        : undefined,
+    }))
     .catch(() => undefined)
 }
 
