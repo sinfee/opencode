@@ -16,6 +16,7 @@ const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 export function configureApplication() {
   // 本分支的构建产物固定使用 Win7 运行布局，直接双击 EXE 也启用适配。
   process.env.OPENCODE_WIN7 = "1"
+  process.env.NODE_SKIP_PLATFORM_CHECK = "1"
   if (app.isPackaged) {
     const root = path.join(process.resourcesPath, "win7")
     process.env.PATH = ["node", "python", "psh"].map((name) => path.join(root, name)).join(path.delimiter) + path.delimiter + (process.env.PATH ?? "")
