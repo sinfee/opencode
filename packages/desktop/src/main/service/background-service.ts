@@ -44,8 +44,12 @@ const connect = Effect.fn("BackgroundService.connect")(function* (mode: "initial
   const ensure = () =>
     client.Service.ensure({
       file:
-        isolated && process.env.OPENCODE_DESKTOP_SERVER_CHANNEL === "local"
-          ? path.join(app.getPath("userData"), "opencode", "service-local.json")
+        process.env.OPENCODE_DESKTOP_SERVER_CHANNEL === "local"
+          ? path.join(
+              process.env.XDG_STATE_HOME ?? path.join(app.getPath("home"), ".local", "state"),
+              "opencode",
+              "service-local.json",
+            )
           : app.isPackaged && process.env.OPENCODE_WIN7 === "1"
             ? path.join(process.env.XDG_STATE_HOME ?? path.join(app.getPath("home"), ".local", "state"), "opencode", "service-win7.json")
             : undefined,

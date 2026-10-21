@@ -21,8 +21,6 @@ export function configureApplication() {
     const root = path.join(process.resourcesPath, "win7")
     process.env.PATH = ["node", "python", "psh"].map((name) => path.join(root, name)).join(path.delimiter) + path.delimiter + (process.env.PATH ?? "")
   }
-  // 本分支的构建产物固定使用 Win7 运行布局，直接双击 EXE 也启用适配。
-  process.env.OPENCODE_WIN7 = "1"
   try {
     process.chdir(homedir())
   } catch {}
@@ -73,6 +71,7 @@ function createTestRoot() {
     mkdirSync(path.join(root, dir), { recursive: true })
 
   if (testOnboarding) process.env.OPENCODE_DB = ":memory:"
+
   process.env.XDG_DATA_HOME = path.join(root, "data")
   process.env.XDG_CONFIG_HOME = path.join(root, "config")
   process.env.XDG_CACHE_HOME = path.join(root, "cache")

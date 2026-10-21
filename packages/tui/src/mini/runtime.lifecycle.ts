@@ -17,6 +17,7 @@ import {
   type ScrollbackWriter,
 } from "@opentui/core"
 import { isFallbackTitle } from "@opencode/util/session-title-fallback"
+import { setTerminalTitle } from "../util/renderer"
 import { monoSnapshot } from "./mono"
 import { entrySplash, exitSplash } from "./splash"
 import { resolveRunTheme } from "./theme"
@@ -93,10 +94,12 @@ export type Lifecycle = {
 
 // Gracefully tears down the renderer. Order matters: switch external output
 // back to passthrough before leaving split-footer mode, so pending stdout
-// doesn't get captured into the now-dead scrollback pipeline.
-function shutdown(renderer: CliRenderer): void {
+// doesn't get captured into the now-dead scrollback pipeline. closed rejects
+// when the terminal is gone or the final flush times out; nothing is left to
+// restore.
+async function shutdown(renderer: CliRenderer): Promise<void> {
   if (renderer.isDestroyed) {
-    return
+    return renderer.closed.catch(() => {})
   }
 
   if (renderer.externalOutputMode === "capture-stdout") {
@@ -110,6 +113,7 @@ function shutdown(renderer: CliRenderer): void {
   if (!renderer.isDestroyed) {
     renderer.destroy()
   }
+  await renderer.closed.catch(() => {})
 }
 
 function splashTitle(title: string | undefined, history: RunPrompt[]) {
@@ -156,6 +160,12 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
   const mono = miniSettings.mono
   const renderer = await createCliRenderer({
     stdin: input.host.terminal.stdin,
+    // Win7 原生控制台通过 Node/libuv 解释 ANSI，避免 Zig 直接写控制台导致控制序列损坏。
+    stdout: process.env.OPENCODE_WIN7 === "1"
+      ? Object.create(process.stdout, {
+          write: { value: process.stdout.write.bind(process.stdout), writable: true },
+        })
+      : undefined,
     targetFps: 30,
     maxFps: 60,
     useMouse: false,
@@ -171,11 +181,17 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
     consoleMode: "disabled",
     clearOnShutdown: false,
   })
+  if (process.env.OPENCODE_WIN7 === "1") {
+    // 自定义输出流不再自动订阅 SIGWINCH，显式转发尺寸变化并在销毁时解除监听。
+    const resize = () => renderer.resize(process.stdout.columns, process.stdout.rows)
+    process.stdout.on("resize", resize)
+    renderer.once(CliRenderEvents.DESTROY, () => process.stdout.off("resize", resize))
+  }
   if (mono) renderer.on(CliRenderEvents.EXTERNAL_OUTPUT, monoSnapshot)
   const setTitle = (title?: string) => {
     if (input.host.platform !== "linux") return
-    if (!title || isFallbackTitle(title)) return renderer.setTerminalTitle("OpenCode")
-    renderer.setTerminalTitle(`OC | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
+    if (!title || isFallbackTitle(title)) return setTerminalTitle(renderer, "OpenCode")
+    setTerminalTitle(renderer, `OC | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
   }
   setTitle(input.sessionTitle)
   const theme = await resolveRunTheme(renderer, tuiConfig.theme, mono)
@@ -334,8 +350,8 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
       footer.close()
       await footer.idle().catch(() => {})
       footer.destroy()
-      if (input.host.platform === "linux") renderer.setTerminalTitle("")
-      shutdown(renderer)
+      if (input.host.platform === "linux") setTerminalTitle(renderer, "")
+      await shutdown(renderer)
       if (!wroteExit) {
         input.host.stdout.write("\n")
       }
