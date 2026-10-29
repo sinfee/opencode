@@ -1,7 +1,7 @@
 import open from "open"
 import { spawn } from "node:child_process"
 
-export function openUrl(input: string) {
+export async function openUrl(input: string) {
   const url = URL.canParse(input) ? new URL(input) : undefined
   if (!url || (url.protocol !== "http:" && url.protocol !== "https:"))
     return Promise.reject(new Error(`Only http and https links can be opened in the browser: ${input}`))
