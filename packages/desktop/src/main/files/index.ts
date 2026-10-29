@@ -1,6 +1,8 @@
 export * as DesktopFiles from "./index"
 
 import { execFile, spawn } from "node:child_process"
+import { createRequire } from "node:module"
+import path from "node:path"
 import { clipboard, dialog, nativeImage, shell } from "electron"
 import { Context, Effect, FileSystem, Layer, Path } from "effect"
 import type { DirectoryPickerOptions, FilePickerOptions, SaveFilePickerOptions } from "../../shared/ipc-contract"
@@ -165,7 +167,13 @@ export const openExternalURL = Effect.fn("DesktopFiles.openExternalURL")(functio
     return false
   }
 
-  return yield* Effect.tryPromise(() => shell.openExternal(url)).pipe(
+  return yield* Effect.tryPromise(() => {
+    if (process.env.OPENCODE_WIN7 === "1" && /^https?:/i.test(url)) {
+      const browser = createRequire(import.meta.url)(path.join(process.resourcesPath, "win7/browser/browser-host.cjs")) as { openBrowser(url: string): Promise<void> }
+      return browser.openBrowser(url)
+    }
+    return shell.openExternal(url)
+  }).pipe(
     Effect.as(true),
     Effect.catch((error) =>
       scoped("window", Effect.logError("failed to open external target", { url, error })).pipe(Effect.as(false)),

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { createRequire } from "node:module"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { app, BrowserWindow, screen, shell } from "electron"
@@ -81,7 +82,10 @@ export function createEarlyWindow() {
     openExternal: (url) => {
       const target = resolveExternalURL(url)
 
-      if (target) void shell.openExternal(target)
+      if (target && process.env.OPENCODE_WIN7 === "1" && /^https?:/i.test(target)) {
+        const browser = createRequire(import.meta.url)(path.join(process.resourcesPath, "win7/browser/browser-host.cjs")) as { openBrowser(url: string): Promise<void> }
+        void browser.openBrowser(target).catch(() => {})
+      } else if (target) void shell.openExternal(target)
     },
   }
 
