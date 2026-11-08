@@ -5,6 +5,9 @@
 import { Funnel } from "../lib/funnel"
 import { downloadOf, surfaceOf, targetOf } from "../lib/funnel-config"
 import { base } from "./config"
+import { closeNavMenus, installNavMenus } from "@opencode/nav-menus"
+import { fanMotion } from "../component/site/fan-motion"
+import { holdOpenMenu } from "../component/site/menu-hold"
 
 // The page reports to the Console's funnel like the site's (lib/funnel.ts). The docs are English, at the host's root
 // like the site; their config is built in, as a chunk would bring Vite's preload helper with it.
@@ -142,8 +145,19 @@ function toggleSection(open?: boolean) {
   const nav = $("[data-component=section-nav]")!
   const next = open ?? !nav.hasAttribute("data-open")
   nav.toggleAttribute("data-open", next)
+  // The section list and the Contents list drop over the same page, so one closes the other.
+  const contents = $<HTMLDetailsElement>("[data-component=contents-menu][open]")
+  if (next && contents) contents.open = false
   $("[data-slot=section-toggle]", nav)!.setAttribute("aria-expanded", String(next))
+  holdOpenMenu()
 }
+
+// The Contents bar's list holds the page still while it's open (component/site/menu-hold.ts).
+document.addEventListener(
+  "toggle",
+  (event) => (event.target as Element).matches("[data-component=contents-menu]") && holdOpenMenu(),
+  true,
+)
 
 function toggleMenu(open: boolean) {
   const toggle = $('[data-component="menu-toggle"]')!
@@ -160,6 +174,22 @@ phone.addEventListener("change", () => {
   closeLockup()
 })
 
+// The logo menu and the product menu (on DOCS), shared with the site and the other OpenCode sites (packages/nav-menus).
+// Opening one closes the lockup's own menus.
+installNavMenus({ link: (path) => path })
+on("opencode-nav-menu-open" as keyof DocumentEventMap, () => closeLockup())
+
+// The sections menu and its V2/V1 flyout come in as one panel with the nav menus' motion (packages/nav-menus).
+// Reduced motion shows them at once.
+function enter(menu: HTMLElement) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return
+  menu.animate([{ transform: fanMotion.start(0) }, { transform: fanMotion.rest }], {
+    duration: 450,
+    easing: fanMotion.spring,
+  })
+  menu.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: "ease-out" })
+}
+
 // The docs lockup (component/site/docs-lockup.tsx): the chevron opens the sections menu, where "Docs"
 // has its versions in a flyout beside it, or nested under it on phones and touch screens.
 let lockup: HTMLElement | undefined
@@ -175,16 +205,25 @@ const rows = (root: HTMLElement) =>
 
 function openLockup(root: HTMLElement, focus?: "first" | "last" | "current") {
   closeLockup()
+  closeNavMenus()
   lockup = root
   const menu = menuOf(root)
-  const word = $("[data-slot=word]", root)!
-  const box = word.getBoundingClientRect()
-  menu.style.setProperty("--menu-text", `${(html.dir === "rtl" ? html.clientWidth - box.right : box.left) + 6}px`)
+  // Phones: the labels start at the bar's logo mark and the "›" centres on its menu button, from the inline
+  // start and end edges (docs-lockup.css).
+  const logo = $("[data-component=topbar] [data-slot=logo] [data-slot=icon]")?.getBoundingClientRect()
+  const button = $("[data-component=menu-toggle]")?.getBoundingClientRect()
+  if (logo?.width && button?.width) {
+    const rtl = html.dir === "rtl"
+    const centre = button.left + button.width / 2
+    menu.style.setProperty("--menu-label", `${rtl ? html.clientWidth - logo.right : logo.left}px`)
+    menu.style.setProperty("--menu-chevron", `${rtl ? centre : html.clientWidth - centre}px`)
+  }
   menu.dataset.submenu = matchMedia("(max-width: 60rem), (hover: none), (pointer: coarse)").matches
     ? "nested"
     : "flyout"
   menu.hidden = false
-  $$("[aria-haspopup=menu]:not([role=menuitem])", root).forEach((button) =>
+  enter(menu)
+  $$("[aria-haspopup=menu]:not([role=menuitem], [data-nav-product])", root).forEach((button) =>
     button.setAttribute("aria-expanded", "true"),
   )
   const items = rows(root)
@@ -203,7 +242,7 @@ function closeLockup(refocus?: boolean) {
   lockup = undefined
   menuOf(root).hidden = true
   toggleSub(root, false)
-  $$("[aria-haspopup=menu]:not([role=menuitem])", root).forEach((button) =>
+  $$("[aria-haspopup=menu]:not([role=menuitem], [data-nav-product])", root).forEach((button) =>
     button.setAttribute("aria-expanded", "false"),
   )
   if (refocus) $("[data-slot=toggle]", root)?.focus()
@@ -213,8 +252,11 @@ function toggleSub(root: HTMLElement, open: boolean, focus?: boolean) {
   clearTimeout(subTimer)
   const parent = $("[data-slot=parent]", root)
   if (!parent) return
+  const opening = open && !parent.hasAttribute("data-open")
   parent.toggleAttribute("data-open", open)
-  $("[data-slot=submenu]", parent)!.hidden = !open
+  const submenu = $("[data-slot=submenu]", parent)!
+  submenu.hidden = !open
+  if (opening && menuOf(root).dataset.submenu === "flyout") enter(submenu)
   $$("[aria-expanded]", parent).forEach((item) => item.setAttribute("aria-expanded", String(open)))
   if (open && focus)
     ($('[aria-current="page"]', $("[data-slot=submenu]", parent)!) ?? $("[data-slot=submenu] a", parent))?.focus()
@@ -301,6 +343,8 @@ on("pointerdown", (event) => {
   if (lockup && !lockup.contains(target)) closeLockup()
   const contents = $<HTMLDetailsElement>("[data-component=contents-menu][open]")
   if (contents && !contents.contains(target)) contents.open = false
+  const section = $("[data-component=section-nav][data-open]")
+  if (section && !section.contains(target)) toggleSection(false)
 })
 
 // Arrow keys, Home and End move between tabs.
@@ -361,6 +405,16 @@ if (currentPage && currentPage.offsetTop + currentPage.offsetHeight > nav.client
   nav.scrollTop = currentPage.offsetTop - nav.clientHeight / 2
 new ResizeObserver(fade).observe(nav)
 nav.addEventListener("scroll", fade, { passive: true })
+
+// The sidebar leaves with the article at the page's end, but the logo and lockup stay fixed
+// (site.css): while it is on its way out its items pass under them, and data-under fades them there,
+// as Site does on the site's own pages.
+const sidebar = nav.parentElement!
+function under() {
+  sidebar.toggleAttribute("data-under", sidebar.getBoundingClientRect().top < -0.5)
+}
+window.addEventListener("scroll", under, { passive: true })
+under()
 
 // The Contents rail and its phone bar mark the section being read: the last heading past a third of
 // the window, or at the end of the page the one the address names (else the last in view). The rail
@@ -506,12 +560,14 @@ input.addEventListener("input", async () => {
       return option
     }),
   )
-  if (!pages.length) {
+  if (query && !pages.length) {
     const empty = document.createElement("p")
     empty.dataset.slot = "empty"
-    empty.textContent = query ? `No results for “${query}”` : ""
+    empty.innerHTML = `<span></span>. Try a shorter word, or <a href="${base}">browse the docs</a>.`
+    empty.firstChild!.textContent = `No results for “${query}”`
     results.append(empty)
   }
+  input.setAttribute("aria-expanded", String(!!query))
   highlight(0)
 })
 
@@ -563,7 +619,6 @@ function choose(option: HTMLAnchorElement) {
 // The status bars, as the site's footer shows them: the last five 3-hour windows by their worst
 // service, then the live status. Kept a minute in sessionStorage, since every docs page is a full load.
 type Status = "operational" | "degraded" | "outage" | "unknown"
-const statusLabels = { operational: "Normal", degraded: "Degraded", outage: "Outage", unknown: "No data" }
 const headlines = {
   operational: "All systems operational",
   degraded: "Degraded performance",
@@ -575,9 +630,15 @@ function showStatus(bars: Status[]) {
   const link = $("[data-component=status]")
   if (!link) return
   const current = bars.at(-1)!
+  const normal = current === "operational"
   link.dataset.state = current
   link.title = headlines[current]
-  $("[data-slot=status-text]", link)!.textContent = statusLabels[current]
+  // As in the site's footer, "Normal" or else "Status"; screen readers hear the headline instead.
+  $("[data-slot=sr-only]", link)!.textContent = normal ? "Status: " : `Status: ${headlines[current]}`
+  const text = $("[data-slot=status-text]", link)!
+  text.textContent = normal ? "Normal" : "Status"
+  if (normal) text.removeAttribute("aria-hidden")
+  else text.setAttribute("aria-hidden", "true")
   $$("[data-slot=bars] > span", link).forEach((bar, index) => (bar.dataset.state = bars[index] ?? "unknown"))
 }
 const saved = JSON.parse(sessionStorage.getItem("docs-status-bars") ?? "null") as { bars: Status[]; at: number } | null

@@ -5,6 +5,7 @@ import { Chevron, SearchIcon } from "~/component/site/icons"
 import { interFaces, interLatin } from "~/component/site/inter-fonts"
 import { siteLinks } from "~/component/site/links"
 import { LogoIcon } from "~/component/site/marks"
+import { Bracket } from "~/component/site/site-controls"
 import { monoFontFaces, monoFontLatin } from "~/component/site/mono-fonts"
 import { ContentsMenu, OnThisPage } from "~/component/site/on-this-page"
 import { MenuSheet, MenuToggle } from "~/component/site/phone-menu"
@@ -68,7 +69,16 @@ export function DocsLayout(props: {
   const links = siteLinks(i18n.t, (path) => path)
   const nav = navDefaults.flatMap((entry) => (entry.visible ? links.nav.filter((item) => item.id === entry.id) : []))
   const logo = () => (
-    <a href="/" data-slot="logo" data-variant="icon" aria-label={i18n.t("nav.logoAlt")} title={i18n.t("nav.home")}>
+    <a
+      href="/"
+      data-slot="logo"
+      data-variant="icon"
+      data-nav-logo
+      aria-haspopup="menu"
+      aria-expanded="false"
+      aria-label={i18n.t("nav.logoHome")}
+      title={i18n.t("nav.logoHome")}
+    >
       <LogoIcon />
     </a>
   )
@@ -152,8 +162,11 @@ export function DocsLayout(props: {
               {logo()}
               <div data-component="section-nav">
                 <button type="button" data-slot="section-toggle" aria-expanded="false" aria-controls="section-nav">
-                  {/* The page in its section, or the section when the page is named like its title ("Docs" over "Intro"). */}
-                  <span>{current && current.title !== props.title ? current.title : section.title}</span>
+                  {/* The current page as the nav marks it ("[-] Intro" on /docs). */}
+                  <span data-slot="current">
+                    <Bracket />
+                    <span data-slot="label">{current?.title ?? props.title}</span>
+                  </span>
                   <Chevron />
                 </button>
                 <div data-slot="section-body" id="section-nav">
