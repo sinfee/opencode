@@ -5,6 +5,7 @@ import type { Permission } from "@opencode/schema/permission"
 import type { Session } from "@opencode/schema/session"
 import { Patch } from "@opencode/util/patch"
 import { applyPatch, parsePatch, reversePatch, structuredPatch, type StructuredPatch } from "diff"
+import { readFile } from "node:fs/promises"
 import { Effect, Option, Schema } from "effect"
 import { ACPChild } from "./child"
 import { ACPClient } from "./client"
@@ -92,7 +93,7 @@ export const withCompletedDiffs = Effect.fnUntraced(function* (
     (file) =>
       Effect.gen(function* () {
         const path = absolutePath(file.file, cwd)
-        const newText = file.status === "deleted" ? "" : yield* Effect.tryPromise(() => Bun.file(path).text())
+        const newText = file.status === "deleted" ? "" : yield* Effect.tryPromise(() => readFile(path, "utf8"))
         if (file.status === "added") return [diff(path, null, newText)]
         const recorded = parsePatch(file.patch)[0]
         if (!recorded) return []
@@ -133,7 +134,7 @@ const permissionPreviews = Effect.fnUntraced(function* (
     (file) =>
       Effect.gen(function* () {
         const path = absolutePath(file.file, cwd)
-        const oldText = file.status === "added" ? null : yield* Effect.tryPromise(() => Bun.file(path).text())
+        const oldText = file.status === "added" ? null : yield* Effect.tryPromise(() => readFile(path, "utf8"))
         const newText = yield* Effect.try(() => applyPatch(oldText ?? "", file.patch))
         return newText === false ? [] : [diff(path, oldText, newText)]
       }),
@@ -152,7 +153,7 @@ function patchPreviews(input: ToolInput, cwd: string) {
           const newText = hunk.contents.endsWith("\n") || hunk.contents === "" ? hunk.contents : `${hunk.contents}\n`
           return diff(path, null, newText)
         }
-        const oldText = yield* Effect.tryPromise(() => Bun.file(path).text())
+        const oldText = yield* Effect.tryPromise(() => readFile(path, "utf8"))
         if (hunk.type === "delete") return diff(path, oldText, "")
         const derived = yield* Effect.try(() => Patch.derive(hunk.path, hunk.chunks, oldText))
         return diff(hunk.movePath ? absolutePath(hunk.movePath, cwd) : path, oldText, derived.content)

@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js"
+import { setTimeout as delay } from "node:timers/promises"
 import { useClient } from "../context/client"
 import { useTheme } from "../context/theme"
 import { SplitBorder } from "../ui/border"
@@ -16,14 +17,14 @@ export function MigrationOverlay() {
   const abort = new AbortController()
 
   onMount(async () => {
-    await Bun.sleep(1_000)
+    await delay(1_000)
     void (async () => {
       while (true) {
         const status = await client.api.experimental.migration.v1.status({ signal: abort.signal })
         setProgress(status.status === "running" ? status.progress : undefined)
         if (status.status === "completed") return
         if (status.status === "error") throw new Error(status.error)
-        await Bun.sleep(1_000)
+        await delay(1_000)
       }
     })().catch((error) => {
       if (abort.signal.aborted) return

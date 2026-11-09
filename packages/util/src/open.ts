@@ -5,7 +5,7 @@ export async function openUrl(input: string) {
   const url = URL.canParse(input) ? new URL(input) : undefined
   if (!url || (url.protocol !== "http:" && url.protocol !== "https:"))
     return Promise.reject(new Error(`Only http and https links can be opened in the browser: ${input}`))
-  if (process.platform === "win32" && process.env.OPENCODE_WIN7 === "1") {
+  if (process.platform === "win32" && process.env.OPENCODE_LEGACY_WINDOWS === "1") {
     const launcher = process.env.OPENCODE_WIN7_BROWSER_LAUNCHER
     if (!launcher) return Promise.reject(new Error("包内浏览器入口未配置"))
     return new Promise<void>((resolve, reject) => {

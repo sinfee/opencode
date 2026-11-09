@@ -59,7 +59,7 @@ const layer = Layer.succeed(Socket.WebSocketConstructor, (url, input) => {
   const config = constructorOptions(input)
   const selectedProxy = proxy(url)
   // Keep trust on the runtime store so NODE_EXTRA_CA_CERTS remains additive.
-  if (typeof Bun !== "undefined") {
+  if ((process.versions as { bun?: string }).bun !== undefined) {
     // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- Bun extends the browser constructor with handshake and network options.
     const WebSocket = globalThis.WebSocket as unknown as BunWebSocketConstructor
     return new WebSocket(url, {

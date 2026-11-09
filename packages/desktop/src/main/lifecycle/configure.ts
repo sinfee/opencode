@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
-import { mkdirSync, rmSync } from "node:fs"
-import { enableCompileCache } from "node:module"
+import { existsSync, mkdirSync, rmSync } from "node:fs"
+import { createRequire, enableCompileCache } from "node:module"
 import { homedir, tmpdir } from "node:os"
 import path from "node:path"
 import { app } from "electron"
@@ -16,12 +16,14 @@ const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 // take effect before ready, the single-instance lock is scoped to userData, and the early window
 // needs userData to find the persisted window list and state.
 export function configureApplication() {
-  // 本分支的构建产物固定使用 Win7 运行布局，直接双击 EXE 也启用适配。
-  process.env.OPENCODE_WIN7 = "1"
-  process.env.NODE_SKIP_PLATFORM_CHECK = "1"
-  if (app.isPackaged) {
+  if (app.isPackaged && process.platform === "win32") {
     const root = path.join(process.resourcesPath, "win7")
-    process.env.PATH = ["node", "python", "psh"].map((name) => path.join(root, name)).join(path.delimiter) + path.delimiter + (process.env.PATH ?? "")
+    const appRoot = path.join(root, "app")
+    const policy = path.join(appRoot, "runtime-policy.cjs")
+    if (existsSync(policy)) {
+      const { nodeDirectory } = createRequire(import.meta.url)(policy).configureRuntime(appRoot) as { nodeDirectory: string }
+      process.env.PATH = [nodeDirectory, path.join(root, "python"), path.join(root, "psh"), process.env.PATH ?? ""].join(path.delimiter)
+    }
   }
   try {
     process.chdir(homedir())

@@ -161,7 +161,7 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
   const renderer = await createCliRenderer({
     stdin: input.host.terminal.stdin,
     // Win7 原生控制台通过 Node/libuv 解释 ANSI，避免 Zig 直接写控制台导致控制序列损坏。
-    stdout: process.env.OPENCODE_WIN7 === "1"
+    stdout: process.env.OPENCODE_LEGACY_WINDOWS === "1"
       ? Object.create(process.stdout, {
           write: { value: process.stdout.write.bind(process.stdout), writable: true },
         })
@@ -181,7 +181,7 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
     consoleMode: "disabled",
     clearOnShutdown: false,
   })
-  if (process.env.OPENCODE_WIN7 === "1") {
+  if (process.env.OPENCODE_LEGACY_WINDOWS === "1") {
     // 自定义输出流不再自动订阅 SIGWINCH，显式转发尺寸变化并在销毁时解除监听。
     const resize = () => renderer.resize(process.stdout.columns, process.stdout.rows)
     process.stdout.on("resize", resize)

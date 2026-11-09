@@ -206,7 +206,7 @@ export const openExternalURL = Effect.fn("DesktopFiles.openExternalURL")(functio
   }
 
   return yield* Effect.tryPromise(() => {
-    if (process.env.OPENCODE_WIN7 === "1" && /^https?:/i.test(url)) {
+    if (process.env.OPENCODE_LEGACY_WINDOWS === "1" && /^https?:/i.test(url)) {
       const browser = createRequire(import.meta.url)(path.join(process.resourcesPath, "win7/browser/browser-host.cjs")) as { openBrowser(url: string): Promise<void> }
       return browser.openBrowser(url)
     }

@@ -251,7 +251,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       const options = {
         externalOutputMode: "passthrough",
         // Win7 通过 Node 输出流执行 ANSI 到旧控制台的转换。
-        stdout: process.env.OPENCODE_WIN7 === "1"
+        stdout: process.env.OPENCODE_LEGACY_WINDOWS === "1"
           ? Object.create(process.stdout, {
               write: { value: process.stdout.write.bind(process.stdout), writable: true },
             })
@@ -294,7 +294,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             }),
         )
       })
-      if (process.env.OPENCODE_WIN7 === "1") {
+      if (process.env.OPENCODE_LEGACY_WINDOWS === "1") {
         const resize = () => renderer.resize(process.stdout.columns, process.stdout.rows)
         process.stdout.on("resize", resize)
         renderer.once(CliRenderEvents.DESTROY, () => process.stdout.off("resize", resize))

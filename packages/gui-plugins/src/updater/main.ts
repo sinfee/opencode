@@ -10,7 +10,8 @@ const setup: Plugin.MainSetup = async (ctx) => {
   const builtin = builtinMainContext(ctx)
   const build = ctx.app
   const lifecycle = builtin.lifecycle
-  const enabled = build.packaged
+  // 便携发行禁用整条更新链，旧缓存也不能触发下载或重启安装。
+  const enabled = build.packaged && process.env.OPENCODE_WIN7 !== "1"
   // Holds no resources, so it needs no cleanup.
   const context = logContext(ctx.log.write)
   const runPromise = Effect.runPromiseWith(context)

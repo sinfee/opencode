@@ -48,7 +48,7 @@ const perform = (command: EarlyWindowCommand<EarlyWindow>) => {
   if (command.type === "open-external-early") {
     const target = resolveExternalURL(command.url)
 
-    if (target && process.env.OPENCODE_WIN7 === "1" && /^https?:/i.test(target)) {
+    if (target && process.env.OPENCODE_LEGACY_WINDOWS === "1" && /^https?:/i.test(target)) {
       const browser = createRequire(import.meta.url)(path.join(process.resourcesPath, "win7/browser/browser-host.cjs")) as { openBrowser(url: string): Promise<void> }
       void browser.openBrowser(target).catch(() => {})
     } else if (target) void shell.openExternal(target)

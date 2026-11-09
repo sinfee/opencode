@@ -1,3 +1,4 @@
+import { open, stat } from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -82,12 +83,19 @@ const mimeTypes: Record<string, string> = {
 }
 
 async function readFileBounded(file: string, maxBytes: number) {
-  const source = Bun.file(file)
-  if (!(await source.exists())) throw new Error("Attachment does not exist")
-  if (source.size > maxBytes) throw new Error("Attachment exceeds the local file limit")
-  const content = Buffer.from(await source.slice(0, maxBytes + 1).arrayBuffer())
-  if (content.byteLength > maxBytes) throw new Error("Attachment exceeds the local file limit")
-  return content
+  // Win7 运行在 Node 上没有 Bun.file，改用 Node 文件接口读取并限制字节数。
+  const info = await stat(file).catch(() => null)
+  if (!info || !info.isFile()) throw new Error("Attachment does not exist")
+  if (info.size > maxBytes) throw new Error("Attachment exceeds the local file limit")
+  const handle = await open(file, "r")
+  try {
+    const buffer = Buffer.alloc(Math.min(info.size, maxBytes + 1))
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+    if (bytesRead > maxBytes) throw new Error("Attachment exceeds the local file limit")
+    return buffer.subarray(0, bytesRead)
+  } finally {
+    await handle.close()
+  }
 }
 
 export function normalizePastedFilepath(value: string, platform: string) {

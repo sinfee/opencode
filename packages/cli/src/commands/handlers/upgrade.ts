@@ -11,6 +11,7 @@ export default Runtime.handler(
   Commands.commands.upgrade,
   Effect.fn("cli.upgrade")(
     function* (input) {
+      if (Updater.legacyUpdatesDisabled()) return yield* Effect.fail(new Error(Updater.legacyUpdateMessage))
       intro("Upgrade")
       const updater = yield* Updater.Service
       const method = Option.getOrUndefined(input.method) ?? (yield* updater.method())

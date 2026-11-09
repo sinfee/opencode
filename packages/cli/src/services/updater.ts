@@ -119,6 +119,9 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/cli/Updater") {}
 
+export const legacyUpdatesDisabled = () => process.env.OPENCODE_LEGACY_WINDOWS === "1"
+export const legacyUpdateMessage = "Win7 模式已禁用程序内更新，请手工替换经过验收的发行包。"
+
 export function decodePolicy(text: string): Policy | undefined {
   // The CLI only projects this host-level preference instead of initializing
   // the location-scoped server configuration graph.
@@ -359,11 +362,13 @@ const make = Effect.gen(function* () {
   })
 
   const latest = (selected?: Method) =>
-    (selected ? Effect.succeed(selected) : method()).pipe(
-      Effect.flatMap((method) =>
-        method === "winget" ? wingetVersion() : release(method).pipe(Effect.map((data) => data.version)),
-      ),
-    )
+    legacyUpdatesDisabled()
+      ? Effect.fail(new Error(legacyUpdateMessage))
+      : (selected ? Effect.succeed(selected) : method()).pipe(
+          Effect.flatMap((method) =>
+            method === "winget" ? wingetVersion() : release(method).pipe(Effect.map((data) => data.version)),
+          ),
+        )
 
   const temporaryDirectory = (prefix: string) =>
     Effect.acquireRelease(fs.makeTempDirectory({ directory: global.cache, prefix }), (directory) =>
@@ -423,6 +428,7 @@ const make = Effect.gen(function* () {
   }
 
   const upgrade = Effect.fnUntraced(function* (method: Method, input: string) {
+    if (legacyUpdatesDisabled()) return yield* Effect.fail(new Error(legacyUpdateMessage))
     if (!parseReleaseVersion(input)) return yield* Effect.fail(new Error(`Invalid version: ${input}`))
     const version = input.trim().replace(/^v/, "")
     const packageName =
@@ -532,6 +538,7 @@ const make = Effect.gen(function* () {
   })
 
   const inspect = Effect.fnUntraced(function* () {
+    if (legacyUpdatesDisabled()) return undefined
     if (OPENCODE_LOCAL || ["1", "true"].includes(process.env.OPENCODE_DISABLE_AUTOUPDATE?.toLowerCase() ?? "")) {
       yield* Effect.logInfo("update check skipped", {
         reason: OPENCODE_LOCAL ? "local-install" : "disabled",
@@ -575,6 +582,7 @@ const make = Effect.gen(function* () {
   })
 
   const apply = Effect.fn("cli.updater.apply")(function* (version: string) {
+    if (legacyUpdatesDisabled()) return yield* Effect.fail(new Error(legacyUpdateMessage))
     if (!(yield* install(version)))
       return yield* Effect.fail(
         new Error(
@@ -584,6 +592,7 @@ const make = Effect.gen(function* () {
   })
 
   const check = Effect.fn("cli.updater.check")(function* () {
+    if (legacyUpdatesDisabled()) return { type: "unavailable" as const, message: legacyUpdateMessage }
     if (OPENCODE_LOCAL)
       return {
         type: "unavailable" as const,

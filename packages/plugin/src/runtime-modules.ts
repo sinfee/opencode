@@ -1,4 +1,5 @@
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync, globSync, realpathSync } from "node:fs"
+import { createRequire } from "node:module"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -6,9 +7,14 @@ export type RuntimeModuleLoader = () => Record<string, unknown> | Promise<Record
 
 const runtimePackages = ["effect", "@opencode/plugin"] as const
 
+// Win7 运行在 Node 上，没有 Bun.resolveSync；用 Node 的模块解析定位宿主包入口。
+function resolveSync(specifier: string, from: string) {
+  return createRequire(path.join(from, "package.json")).resolve(specifier)
+}
+
 export function resolveHostPackageRoots(from = import.meta.dir, packages: readonly string[] = runtimePackages) {
   return packages.flatMap((pkgName) => {
-    const dir = path.dirname(Bun.resolveSync(`${pkgName}/package.json`, from))
+    const dir = path.dirname(resolveSync(`${pkgName}/package.json`, from))
     return [dir, findNodeModulesDir(pkgName, from, dir)]
   })
 }
@@ -28,17 +34,17 @@ export function discoverPluginRuntimeSpecifiers(
 ): ReadonlyMap<string, string> {
   const entries = new Map<string, string>()
   for (const pkgName of packages) {
-    const realDir = path.dirname(Bun.resolveSync(`${pkgName}/package.json`, from))
+    const realDir = path.dirname(resolveSync(`${pkgName}/package.json`, from))
     // Resolve workspace @opencode/plugin paths via node_modules so OpenTUI does not wrap host files in async rewrite loaders.
     const loadDir = findNodeModulesDir(pkgName, from, realDir)
     const toLoadPath = (resolved: string) =>
       loadDir === realDir ? resolved : path.join(loadDir, path.relative(realDir, resolved))
-    const rootEntry = Bun.resolveSync(pkgName, from)
+    const rootEntry = resolveSync(pkgName, from)
     const relParts = path.relative(realDir, rootEntry).replaceAll("\\", "/").split("/")
     const scanDir = relParts.length > 1 ? path.join(realDir, relParts[0]) : realDir
     const ext = path.extname(rootEntry) || ".js"
     entries.set(pkgName, toLoadPath(rootEntry))
-    for (const file of new Bun.Glob(`**/*${ext}`).scanSync({ cwd: scanDir })) {
+    for (const file of globSync(`**/*${ext}`, { cwd: scanDir })) {
       const normalized = file.replaceAll("\\", "/")
       // The GUI SDK and its Vite preset (`gui/`) run in the desktop app and at build time, never in the server or the TUI.
       if (
@@ -58,7 +64,7 @@ export function discoverPluginRuntimeSpecifiers(
       for (const specifier of candidates) {
         if (entries.has(specifier)) continue
         try {
-          entries.set(specifier, toLoadPath(Bun.resolveSync(specifier, from)))
+          entries.set(specifier, toLoadPath(resolveSync(specifier, from)))
         } catch {}
       }
     }

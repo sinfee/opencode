@@ -1,8 +1,6 @@
 import { loadRuntimeModules, resolveHostPackageRoots, type RuntimeModuleLoader } from "./runtime-modules.js"
 
 const foreignPkgSuffix = String.raw`(?:node_modules[/\\](@opencode[/\\]plugin|effect)|(@opencode[/\\]plugin|effect)@[^/\\]+@@@\d+)`
-const foreignPkgPattern = new RegExp(String.raw`^(.*[/\\]${foreignPkgSuffix})[/\\](.+)$`)
-
 let installed: Readonly<Record<string, RuntimeModuleLoader>> | undefined
 
 export function provides(specifier: string) {
@@ -10,31 +8,13 @@ export function provides(specifier: string) {
 }
 
 export function ensurePluginRuntime() {
-  if (typeof Bun === "undefined") return {}
+  // 本分支只交付 Node 宿主：Node 侧插件模块由 globalThis 符号注入提供，不依赖 Bun 插件运行时。
+  if ((process.versions as { bun?: string }).bun === undefined) return {}
   if (installed) return installed
   const modules = loadRuntimeModules()
   installed = modules
-  Bun.plugin({
-    name: "opencode-plugin-runtime",
-    setup(build) {
-      for (const [specifier, load] of Object.entries(modules)) {
-        build.module(specifier, () => {
-          const exports = load()
-          return exports instanceof Promise
-            ? exports.then((value) => ({ exports: value, loader: "object" as const }))
-            : { exports, loader: "object" as const }
-        })
-      }
-      build.onLoad({ filter: createForeignPackageFilter() }, (args) => {
-        const match = args.path.match(foreignPkgPattern)
-        const target = match ? `${match[2] ?? match[3]}/${match[4]}`.replaceAll("\\", "/") : args.path
-        throw new Error(
-          `Cannot load "${target}" from plugin node_modules: "${target}" is not provided by OpenCode; plugins must use the host's "effect" and "@opencode/plugin" modules.`,
-        )
-      })
-    },
-  })
-  return modules
+  // Bun 专属的模块钩子注册依赖 Bun 运行时，Node 宿主无法实现。
+  throw new Error("opencode Bun 插件运行时在 Node 宿主上不可用")
 }
 
 export function createForeignPackageFilter(rootsInput: Iterable<string> = resolveHostPackageRoots()) {

@@ -233,14 +233,19 @@ if (__ocIsSea()) {
   }
 }
 process.env.OPENCODE_NODE_ASSETS_DIR = __ocAssetRoot
-if (process.env.OPENCODE_WIN7 === "1") require(__ocPath.join(__ocAssetRoot, "opencode-win7-preload.cjs"))
-process.env.OTUI_ASSET_ROOT = __ocAssetRoot
-process.env.OPENCODE_NODE_PTY_PATH = process.env.OPENCODE_WIN7 === "1" ? __ocPath.join(__ocAssetRoot, "opencode-winpty/index.cjs") : __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.nodePtyEntryAsset)})
-process.env.OPENCODE_PARCEL_WATCHER_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.parcelWatcherAsset)})
+const __ocAppRoot = __ocPath.dirname(__ocAssetRoot)
+const __ocRuntimePolicy = __ocPath.join(__ocAppRoot, "runtime-policy.cjs")
+const __ocNativeRoot = !__ocIsSea() && process.platform === "win32" && __ocExists(__ocRuntimePolicy)
+  ? require(__ocRuntimePolicy).configureRuntime(__ocAppRoot).assetRoot
+  : __ocAssetRoot
+if (process.env.OPENCODE_LEGACY_WINDOWS === "1") require(__ocPath.join(__ocNativeRoot, "opencode-win7-preload.cjs"))
+process.env.OTUI_ASSET_ROOT = __ocNativeRoot
+process.env.OPENCODE_NODE_PTY_PATH = process.env.OPENCODE_LEGACY_WINDOWS === "1" ? __ocPath.join(__ocNativeRoot, "opencode-winpty/index.cjs") : __ocPath.join(__ocNativeRoot, ${JSON.stringify(input.target.nodePtyEntryAsset)})
+process.env.OPENCODE_PARCEL_WATCHER_PATH = __ocPath.join(__ocNativeRoot, ${JSON.stringify(input.target.parcelWatcherAsset)})
 process.env.OPENCODE_PHOTON_WASM_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(photonWasmAsset)})
-process.env.FFF_BINARY_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.fffAsset)})
-process.env.OPENCODE_FFF_FFI_PATH = __ocPath.join(__ocAssetRoot, ${JSON.stringify(input.target.fffFfiAsset)})
-if (__ocPersistentPty && !process.env.OPENCODE_PTY_BIN) process.env.OPENCODE_PTY_BIN = __ocPath.join(__ocAssetRoot, __ocPersistentPty)
+process.env.FFF_BINARY_PATH = __ocPath.join(__ocNativeRoot, ${JSON.stringify(input.target.fffAsset)})
+process.env.OPENCODE_FFF_FFI_PATH = __ocPath.join(__ocNativeRoot, ${JSON.stringify(input.target.fffFfiAsset)})
+if (__ocPersistentPty && !process.env.OPENCODE_PTY_BIN) process.env.OPENCODE_PTY_BIN = __ocPath.join(__ocNativeRoot, __ocPersistentPty)
 try {
   globalThis.__OPENCODE_FFF_FFI = require(process.env.OPENCODE_FFF_FFI_PATH)
 } catch {}
