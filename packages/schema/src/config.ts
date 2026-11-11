@@ -117,7 +117,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
 }) {}
 
 export const Patch = Schema.Struct({
-  shell: Schema.NullOr(Schema.String),
+  shell: Schema.NullOr(Schema.String).pipe(optional),
+  // 按 JSON Merge Patch 语义合并到全局配置的 providers：null 删除对应键。
+  providers: Schema.Record(Schema.String, Schema.NullOr(Schema.Record(Schema.String, Schema.Json))).pipe(optional),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

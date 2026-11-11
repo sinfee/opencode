@@ -15,6 +15,7 @@ import { Location } from "./location.js"
 import { AbsolutePath } from "./schema.js"
 import { ConfigVariable } from "./config/variable.js"
 import { ConfigNormalize } from "./config/normalize.js"
+import { ConfigProviderPatch } from "./config/provider-patch.js"
 import { ConfigDiscovery } from "./config/discovery.js"
 import { ConfigWatch } from "./config/watch.js"
 import { ConfigIntegration } from "./config/integration.js"
@@ -475,11 +476,17 @@ export const layer = (options?: Options) =>
           const text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
           const updated = yield* Effect.try({
             try: () =>
-              applyEdits(
-                text,
-                modify(text, ["shell"], patch.shell ?? undefined, {
-                  formattingOptions: { tabSize: 2, insertSpaces: true },
-                }),
+              ConfigProviderPatch.apply(
+                // 请求未携带 shell 时保持原值，只更新供应商的请求不能清掉 shell 设置。
+                patch.shell === undefined
+                  ? text
+                  : applyEdits(
+                      text,
+                      modify(text, ["shell"], patch.shell ?? undefined, {
+                        formattingOptions: { tabSize: 2, insertSpaces: true },
+                      }),
+                    ),
+                patch.providers,
               ),
             catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
           })

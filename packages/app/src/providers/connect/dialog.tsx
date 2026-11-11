@@ -29,6 +29,7 @@ import { CONSOLE_INTEGRATION, type ProviderDialogBody, type ProviderDialogFrame 
 import { connectMethods, selectProviderConnectView, type ProviderConnectMethod } from "./machine"
 import type { ProviderFormInput, ProviderFormView } from "./form-machine"
 import { ConsoleAuthorization } from "./console"
+import { DialogCustomProvider } from "@/providers/custom/dialog"
 import { DialogChatGPTPlanWelcome } from "./chatgpt-welcome"
 import { authServerName, RemoteAuthNotice } from "./remote"
 import { providerAccounts } from "@/settings/providers/accounts"
@@ -236,6 +237,7 @@ const POPULAR = ["opencode", "opencode-go", "openai", "github-copilot", "anthrop
 function ProviderPicker(props: { directory?: string; onSelect: (provider: string) => void; onPrepare?: () => void }) {
   const integrations = useIntegrations(() => props.directory)
   const language = useLanguage()
+  const dialog = useDialog()
 
   const [store, setStore] = createStore<{
     filter: string
@@ -418,6 +420,16 @@ function ProviderPicker(props: { directory?: string; onSelect: (provider: string
           style={{ background: "linear-gradient(to bottom, transparent, var(--v2-background-bg-base))" }}
         />
       </div>
+      {/* 自定义供应商不在集成目录里，入口固定在列表下方，不随列表滚动，也不受搜索过滤影响。 */}
+      <button
+        type="button"
+        data-action="provider-custom-add"
+        class="flex min-h-8 w-full shrink-0 items-center gap-2 rounded-md py-1.5 ps-2 pe-1.5 text-left text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus:outline-none"
+        onClick={() => void dialog.show(() => <DialogCustomProvider directory={props.directory} />)}
+      >
+        <Icon name="plus-small" class="shrink-0 text-v2-icon-icon-base" />
+        {language.t("provider.custom.add")}
+      </button>
     </div>
   )
 }

@@ -99,6 +99,67 @@ it.live("updates the global shell without replacing unrelated JSONC", () =>
   }),
 )
 
+it.live("adds a global provider without touching the shell, then stores its key as a credential", () =>
+  Effect.gen(function* () {
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("opencode-config-providers-")))
+    const global = path.join(tmp.path, "global")
+    const config = path.join(global, "opencode.jsonc")
+    yield* Effect.promise(() => fs.mkdir(global, { recursive: true }))
+    yield* Effect.promise(() => fs.writeFile(config, '{\n  // keep this comment\n  "shell": "bash"\n}\n'))
+    const server = yield* startServer(global)
+    const headers = { ...server.headers, "content-type": "application/json" }
+    const response = yield* Effect.promise(() =>
+      fetch(new URL("/api/experimental/config", server.base), {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({
+          providers: {
+            "custom-test": {
+              name: "Custom Test",
+              package: "aisdk:@ai-sdk/openai-compatible",
+              settings: { baseURL: "https://api.example.com/v1" },
+              models: { "model-a": { name: "Model A" } },
+            },
+          },
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(204)
+    const text = yield* Effect.promise(() => fs.readFile(config, "utf8"))
+    expect(text).toContain("// keep this comment")
+    expect(text).toContain('"shell": "bash"')
+    expect(text).toContain('"baseURL": "https://api.example.com/v1"')
+
+    // 配置重载是异步的：供应商对应的集成出现后才能保存密钥。
+    const integration = new URL("/api/integration/custom-test", server.base)
+    const ready = yield* Effect.promise(async () => {
+      for (const _ of Array.from({ length: 100 })) {
+        if ((await fetch(integration, { headers: server.headers })).status === 200) return true
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      return false
+    })
+    expect(ready).toBe(true)
+
+    const connected = yield* Effect.promise(() =>
+      fetch(new URL("/api/integration/custom-test/connect/key", server.base), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ key: "secret-key" }),
+      }),
+    )
+    expect(connected.status).toBe(204)
+    expect(yield* Effect.promise(() => fs.readFile(config, "utf8"))).not.toContain("secret-key")
+
+    const credentials = yield* Effect.promise(() =>
+      fetch(new URL("/api/credential", server.base), { headers: server.headers }).then((result) => result.text()),
+    )
+    expect(credentials).toContain("custom-test")
+    expect(credentials).toContain("secret-key")
+  }),
+)
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
