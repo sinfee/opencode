@@ -21,8 +21,10 @@ export function configureApplication() {
     const appRoot = path.join(root, "app")
     const policy = path.join(appRoot, "runtime-policy.cjs")
     if (existsSync(policy)) {
+      // configureRuntime 已按 Win10+/Win7 规则写入工具 PATH（Win10+ 选中系统 pwsh 时会移出包内 psh）；
+      // 这里仅把对应系统的 Node 目录置前，不把包内 psh 塞回 PATH 最前以免覆盖分流结果。
       const { nodeDirectory } = createRequire(import.meta.url)(policy).configureRuntime(appRoot) as { nodeDirectory: string }
-      process.env.PATH = [nodeDirectory, path.join(root, "python"), path.join(root, "psh"), process.env.PATH ?? ""].join(path.delimiter)
+      process.env.PATH = [nodeDirectory, ...(process.env.PATH ?? "").split(path.delimiter).filter((entry) => entry && entry !== nodeDirectory)].join(path.delimiter)
     }
   }
   try {

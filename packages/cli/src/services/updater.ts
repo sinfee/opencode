@@ -124,8 +124,9 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/cli/Updater") {}
 
-export const legacyUpdatesDisabled = () => process.env.OPENCODE_LEGACY_WINDOWS === "1"
-export const legacyUpdateMessage = "Win7 模式已禁用程序内更新，请手工替换经过验收的发行包。"
+export const legacyUpdatesDisabled = () =>
+  OPENCODE_CHANNEL === "win7" || process.env.OPENCODE_WIN7 === "1" || process.env.OPENCODE_LEGACY_WINDOWS === "1"
+export const legacyUpdateMessage = "定制版本已禁用程序内检查与更新，请手工替换经过验收的发行包。"
 
 export function decodePolicy(text: string): Policy | undefined {
   // The CLI only projects this host-level preference instead of initializing

@@ -1,6 +1,6 @@
 import whichPkg from "which"
 import path from "path"
-import { existsSync, lstatSync } from "fs"
+import { lstatSync, statSync } from "fs"
 
 export function which(cmd: string, env?: NodeJS.ProcessEnv, bin?: string) {
   const base = env?.PATH ?? env?.Path ?? process.env.PATH ?? process.env.Path ?? ""
@@ -17,11 +17,15 @@ export function which(cmd: string, env?: NodeJS.ProcessEnv, bin?: string) {
 // Microsoft Store apps, such as PowerShell 7, put app execution aliases in WindowsApps on PATH. They launch like
 // any executable, but stat rejects them with EACCES, so `which` skips them.
 export function isAppExecutionAlias(file: string) {
-  return (
-    process.platform === "win32" &&
-    lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink() === true &&
-    existsSync(file)
-  )
+  // Windows 上 existsSync 会跟随重解析点调用 stat 并因 EACCES 返回 false，
+  // 对 Microsoft Store 应用执行别名需在 lstat 确认为符号链接后放行 EACCES，同时拒绝普通断链（ENOENT）。
+  if (process.platform !== "win32") return false
+  if (lstatSync(file, { throwIfNoEntry: false })?.isSymbolicLink() !== true) return false
+  try {
+    return statSync(file).isFile()
+  } catch (error) {
+    return (error as NodeJS.ErrnoException)?.code === "EACCES"
+  }
 }
 
 function appExecutionAlias(cmd: string, search: string | undefined) {
