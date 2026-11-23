@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { dialog } from "electron"
 import { Effect, Exit, Schema, Scope } from "effect"
 import { builtinMainContext } from "@opencode/plugin/gui/builtin"
@@ -11,11 +13,13 @@ const setup: Plugin.MainSetup = async (ctx) => {
   const build = ctx.app
   const lifecycle = builtin.lifecycle
   // 便携发行禁用整条更新链，旧缓存也不能触发下载或重启安装。
-  const enabled = build.packaged && process.env.OPENCODE_WIN7 !== "1"
+  const enabled = build.packaged && process.env.OPENCODE_WIN7 !== "1" && existsSync(join(process.resourcesPath, "app-update.yml"))
   // Holds no resources, so it needs no cleanup.
   const context = logContext(ctx.log.write)
   const runPromise = Effect.runPromiseWith(context)
   const runFork = Effect.runForkWith(context)
+
+  if (build.packaged && !enabled) runFork(Effect.logInfo("auto updater disabled, app-update.yml is missing"))
 
   // The update main staged for the next start; stored before in the updater's settings file.
   const ready = builtin.storage.store("ready", {
@@ -24,7 +28,7 @@ const setup: Plugin.MainSetup = async (ctx) => {
     from: { settings: "ready", file: "opencode.updater" },
   })
 
-  // electron-updater loads only in packaged builds, after the first window is up.
+  // electron-updater loads only in packaged builds with a feed, after the first window is up.
   const platform = enabled
     ? await import("./platform").then((module) => runPromise(module.make(build.channel)))
     : undefined

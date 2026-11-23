@@ -4,6 +4,7 @@ import { app } from "electron"
 import { createRequire } from "node:module"
 import path from "node:path"
 import { acquireApplicationLock, configureApplication } from "./lifecycle/configure"
+import { captureLaunchLinks } from "./lifecycle/launch-links"
 import { startSidecarProbe } from "./service/sidecar-probe"
 import { registerStorageSnapshotHandler } from "./storage/snapshot"
 import { createEarlyWindow, earlyWindowClosed } from "./windows/early"
@@ -21,6 +22,7 @@ if (browserMode) {
 } else configureApplication()
 
 if (!browserMode && acquireApplicationLock()) {
+  captureLaunchLinks()
   registerRendererScheme()
   // Window first, then the bundle: starting the import before ready delays ready itself, because the
   // module graph evaluates on the same thread Chromium needs to finish initialising.
