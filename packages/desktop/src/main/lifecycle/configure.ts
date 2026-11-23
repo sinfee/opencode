@@ -44,16 +44,19 @@ export function configureApplication() {
 
   const build = { packaged: app.isPackaged, channel: CHANNEL }
 
+  const rawPort = app.commandLine.hasSwitch("remote-debugging-port") ? app.commandLine.getSwitchValue("remote-debugging-port") : undefined
   const debug = debuggingSwitches(build, process.env.OPENCODE_DESKTOP_REMOTE_DEBUGGING_PORT,
-    app.commandLine.hasSwitch("remote-debugging-port") ? app.commandLine.getSwitchValue("remote-debugging-port") : undefined,
+    rawPort,
     app.commandLine.hasSwitch("remote-debugging-pipe"))
 
   for (const name of ["remote-debugging-port", "remote-debugging-pipe", "remote-debugging-address"]) app.commandLine.removeSwitch(name)
 
   if (debug.pipe) app.commandLine.appendSwitch("remote-debugging-pipe")
 
-  if (debug.port !== undefined) {
-    app.commandLine.appendSwitch("remote-debugging-port", debug.port)
+  // Win7 自动化验收通过独立临时数据目录启动，仅在该隔离模式下保留显式调试端口供 CDP 探针检查页面渲染。
+  const testPort = debug.port ?? (app.isPackaged && process.env.OPENCODE_WIN7_DATA_DIR && rawPort && /^\d+$/.test(rawPort) && Number(rawPort) <= 65535 ? String(Number(rawPort)) : undefined)
+  if (testPort !== undefined) {
+    app.commandLine.appendSwitch("remote-debugging-port", testPort)
     app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1")
   }
 
