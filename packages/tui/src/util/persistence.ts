@@ -1,5 +1,6 @@
 import path from "path"
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from "fs/promises"
+import { setTimeout as delay } from "node:timers/promises"
 
 export function readText(filePath: string) {
   return readFile(filePath, "utf8")
@@ -36,7 +37,8 @@ export async function writeJsonAtomic(filePath: string, value: unknown) {
 async function replace(source: string, target: string, attempt = 0): Promise<void> {
   return rename(source, target).catch(async (error) => {
     if (attempt >= 20 || !["EPERM", "EACCES", "EBUSY"].includes(error?.code)) throw error
-    await Bun.sleep(10)
+    // Win7 运行在 Node 上没有 Bun.sleep，改用 Node 定时器。
+    await delay(10)
     return replace(source, target, attempt + 1)
   })
 }
